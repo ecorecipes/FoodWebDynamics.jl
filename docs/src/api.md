@@ -71,3 +71,17 @@ link_strength
 lmatrix_web
 to_ode_problem
 ```
+
+## Adaptive foraging and pollutants
+
+An optional layer over any ATN model; see the vignette `vignettes/01_pollution`.
+
+```@docs
+ExtendedATN
+initial_state
+extended_rhs!
+simulate
+Pollutant
+release
+allometric_pollutant
+```

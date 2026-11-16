@@ -11,4 +11,5 @@ using Random: Xoshiro
     include("test_assembly.jl")
     include("test_atn.jl")
     include("test_atnr.jl")
+    include("test_extended.jl")
 end

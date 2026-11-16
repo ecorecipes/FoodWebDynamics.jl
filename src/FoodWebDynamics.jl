@@ -37,6 +37,7 @@ export ObservedWeb, read_gateway, trophic_species, relative_masses
 export reaction_network
 export ATNModel, ATNCommunity, PlantGrowth, LogisticGrowth, NutrientGrowth, atn_rhs!, steady_state!, steady_community,
        scaled_atn, unscaled_atn, nutrient_atn, arrhenius, link_strength, lmatrix_web, to_ode_problem
+export Pollutant, release, allometric_pollutant, ExtendedATN, initial_state, extended_rhs!, simulate
 
 include("niche.jl")
 include("bioenergetic.jl")
@@ -44,6 +45,7 @@ include("assembly.jl")
 include("community.jl")
 include("gateway.jl")
 include("atn.jl")
+include("extended.jl")
 
 """
     reaction_network(model::FoodWebModel, B = nothing; name = :foodweb)

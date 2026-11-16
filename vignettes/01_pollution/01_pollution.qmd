@@ -1,0 +1,152 @@
+---
+title: "Adaptive foraging and a pollutant pulse"
+author: "Simon Frost"
+engine: julia
+---
+
+## Overview
+
+Does adaptive foraging help a food web withstand a toxic pollutant? This vignette combines:
+
+- an allometric trophic network (ATN);
+- a pollutant that plants take up from the environment, consumers acquire with their prey, and
+  that adds mortality in proportion to its internal concentration;
+- adaptive foraging, in which consumers shift effort among their prey by replicator dynamics.
+
+Communities are assembled to a steady state, hit with a pulse of pollutant, and scored by the
+share of species that persist. Three foraging strategies are compared:
+
+- **fixed diets**: effort split equally among prey;
+- **adaptive**: effort follows the energy gained per unit effort;
+- **adaptive, avoiding contamination**: the value of a prey is its energy gain minus the expected
+  toxic cost of the pollutant it carries.
+
+The mechanisms follow the general literature (replicator foraging: Kondoh 2003, Valdovinos et
+al. 2010; toxicokinetics: in the spirit of Garay-Narváez et al. 2013). The parameter values are
+illustrative, not fitted to any chemical or system. See the docstrings of `ExtendedATN`,
+`Pollutant` and `allometric_pollutant`.
+
+```{julia}
+using FoodWebDynamics
+using Random, Statistics, Printf
+using Plots
+
+function draw_web(rng; S = 30, nbasal = 8)               # allometric web where every consumer eats
+    while true
+        mass = sort(10 .^ (4 .* rand(rng, S)))
+        web, _ = lmatrix_web(mass; nbasal = nbasal)
+        all(c -> any(web.A[c, :]), (nbasal + 1):S) && return web, mass
+    end
+end
+nothing
+```
+
+## One community and one pulse
+
+A scaled ATN on a 30-species allometric web is integrated to a steady state, and then receives a
+pulse of pollutant centred at t = 500.
+
+```{julia}
+rng = Xoshiro(1)
+web, mass = draw_web(rng)
+base = scaled_atn(web; mass)
+x0 = ExtendedATN(base)
+pre, settled = simulate(x0, initial_state(x0, 0.5 .+ rand(rng, 30)), (0.0, 2000.0); saveat = [2000.0])
+B0 = pre.u[end][1:30]
+x = ExtendedATN(settled.base; pollutant = allometric_pollutant(settled.base; load = 0.002))
+sol, after = simulate(x, initial_state(x, B0), (0.0, 3000.0); saveat = 0:10:3000)
+ie = 30                                   # no nutrients, fixed diets: E is entry 31, body burdens follow
+E = [u[ie + 1] for u in sol.u]
+P = reduce(hcat, [u[(ie + 2):end] for u in sol.u])'
+B = reduce(hcat, [u[1:30] for u in sol.u])'
+(species_before = count(settled.base.alive), species_after = count(after.base.alive))
+```
+
+```{julia}
+tl = log10.(mass)
+p1 = plot(sol.t, E; lw = 2, label = false, title = "environment", xlabel = "time")
+p2 = plot(sol.t, B; lw = 1, label = false, line_z = tl', color = :viridis, title = "biomass (colour: log₁₀ mass)",
+          xlabel = "time", yscale = :log10, ylim = (1e-6, 20))
+conc = [B[k, i] > 0 ? P[k, i] / B[k, i] : NaN for k in axes(B, 1), i in 1:30]
+peak = argmax(E)
+p3 = scatter(tl[settled.base.alive], conc[peak, settled.base.alive]; label = false, xlabel = "log₁₀ body mass",
+             ylabel = "internal concentration", title = "at the peak of the pulse")
+plot(p1, p2, p3; layout = (1, 3), size = (950, 320))
+```
+
+The internal concentration at the peak of the pulse is plotted against body mass. Uptake and
+depuration both scale as m^−0.25. Consumers also accumulate the pollutant they eat, so how
+concentration changes up the food chain depends on the balance between dietary intake and
+elimination.
+
+## Persistence against the size of the pulse
+
+A small ensemble of webs is now run, with the pulse size, the foraging strategy and the Hill
+exponent of the functional response varied. The Hill exponent is 1.2 by default (ATNr); 2 gives
+a strongly stabilising type III response.
+
+```{julia}
+loads = [0.0, 0.001, 0.002, 0.005, 0.01]
+strategies = ["fixed" => (0.0, false), "adaptive" => (1.0, false), "adaptive, avoiding" => (1.0, true)]
+function persistence(seed, hill, G, avoid, L)
+    rng = Xoshiro(seed)
+    web, mass = draw_web(rng)
+    base = scaled_atn(web; mass, hill = hill)
+    x0 = ExtendedATN(base; adaptation = G)
+    pre, settled = simulate(x0, initial_state(x0, 0.5 .+ rand(rng, 30)), (0.0, 2000.0); saveat = [2000.0])
+    n0 = count(settled.base.alive)
+    x = ExtendedATN(settled.base; adaptation = G, avoidance = avoid,
+                    pollutant = allometric_pollutant(settled.base; load = L))
+    u = initial_state(x, pre.u[end][1:30])
+    G > 0 && (u[31:(30 + length(x.links))] .= pre.u[end][31:(30 + length(x.links))])
+    _, after = simulate(x, u, (0.0, 3000.0); saveat = [3000.0])
+    return count(after.base.alive) / n0
+end
+seeds = 1:6
+results = Dict((h, s) => [mean(persistence(k, h, v..., L) for k in seeds) for L in loads]
+               for h in (1.2, 2.0), (s, v) in strategies)
+plots = map((1.2, 2.0)) do h
+    p = plot(; title = "Hill exponent $h", xlabel = "pulse load", ylabel = "share of species persisting",
+             ylim = (0, 1.05), legend = h == 1.2 ? :topright : false)
+    for (s, _) in strategies
+        plot!(p, loads, results[(h, s)]; marker = :circle, lw = 2, label = s)
+    end
+    p
+end
+plot(plots...; layout = (1, 2), size = (900, 340))
+```
+
+```{julia}
+for h in (1.2, 2.0), (s, _) in strategies
+    @printf("Hill %.1f  %-20s %s\n", h, s, join((@sprintf("%.2f", v) for v in results[(h, s)]), "  "))
+end
+```
+
+## Reading the results
+
+With these seeds and parameters, the table above shows the following.
+
+- **Persistence falls with the load under every strategy.** About two-thirds of the species
+  survive the smallest pulse and about a fifth survive the largest. The pollutant enters through
+  the plants, so every food chain carries it.
+- **Adaptive foraging that follows energy alone makes little difference.** It helps slightly at
+  the smallest load (0.69 against 0.64 with a Hill exponent of 1.2) and harms slightly at the
+  largest (0.15 against 0.19). With six webs of 30 species, differences of about 0.05 are
+  within sampling noise. Moving effort towards the most profitable prey does not reduce
+  exposure when all prey are contaminated.
+- **Avoiding contaminated prey cuts both ways.** At small loads it is neutral or slightly
+  protective (with a type III response, 0.69 and 0.51 against 0.64 and 0.49). At the largest
+  load it is strongly harmful (0.05–0.06 against 0.19–0.22): every prey is contaminated, so a
+  consumer that avoids them starves.
+- **The Hill exponent matters little here.** A type III response (exponent 2) raises
+  persistence slightly at the larger loads (0.31 and 0.22 against 0.27 and 0.19 with fixed
+  diets).
+
+These results hold for this model and these illustrative parameters. Under them, adaptive
+foraging does not robustly foster stability, which differs from the claim of the FoodWebs.jl
+manuscript ("Adaptive foraging fosters food web stability in environments disturbed by
+bioaccumulative pollutants"). That manuscript is not yet published and its code has no licence,
+so its exact equations could not be compared. Plausible reasons for the difference are how
+foraging fitness is defined, the time scale of adaptation, and whether the pollutant enters at
+the base or through the environment for every species. A larger ensemble would also be needed
+to resolve the small differences at low loads.
