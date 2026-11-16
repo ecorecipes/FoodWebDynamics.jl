@@ -23,8 +23,10 @@ using OrdinaryDiffEqTsit5: Tsit5
 using Random: Random, AbstractRNG
 using SciMLBase: SciMLBase, ODEFunction, ODEProblem, DiscreteCallback
 using Statistics: mean
+using ForwardDiff: ForwardDiff
 using ResilienceCore: ResilienceCore
 import ResilienceCore: richness, jacobian, state, present_species, with_mortality, without_species
+import StructuredPopulationCore: to_ode_problem
 
 export FoodWeb, niche_model, richness, connectance, isbasal, trophic_levels
 export BioenergeticParameters, AllometricExponents, draw_exponents, FoodWebModel, kill!, set_mortality!, rhs!,
@@ -33,12 +35,15 @@ export SteadyStateOptions, settle!, polish!, consumers, isolated_plants, Communi
 export state, present_species, with_mortality, without_species, PERTURBATION_STEADY
 export ObservedWeb, read_gateway, trophic_species, relative_masses
 export reaction_network
+export ATNModel, ATNCommunity, PlantGrowth, LogisticGrowth, NutrientGrowth, atn_rhs!, steady_state!, steady_community,
+       scaled_atn, unscaled_atn, nutrient_atn, arrhenius, link_strength, lmatrix_web, to_ode_problem
 
 include("niche.jl")
 include("bioenergetic.jl")
 include("assembly.jl")
 include("community.jl")
 include("gateway.jl")
+include("atn.jl")
 
 """
     reaction_network(model::FoodWebModel, B = nothing; name = :foodweb)

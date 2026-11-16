@@ -48,3 +48,26 @@ read_gateway
 trophic_species
 relative_masses
 ```
+
+## Allometric trophic networks
+
+The scaled, unscaled and nutrient models of the ATN family in one general form. Their vector
+fields and trajectories agree with ATNr 1.1.2; see `test/test_atnr.jl`.
+
+```@docs
+ATNModel
+PlantGrowth
+LogisticGrowth
+NutrientGrowth
+atn_rhs!
+steady_state!
+steady_community
+ATNCommunity
+scaled_atn
+unscaled_atn
+nutrient_atn
+arrhenius
+link_strength
+lmatrix_web
+to_ode_problem
+```

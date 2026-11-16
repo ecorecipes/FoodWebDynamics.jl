@@ -44,8 +44,21 @@ Pkg.add(url = "https://github.com/ecorecipes/ResilienceCore.jl")
 Pkg.add(url = "https://github.com/ecorecipes/FoodWebDynamics.jl")
 ```
 
+## Allometric trophic networks
+
+The ATN family is implemented in one general form (`ATNModel`). It covers:
+- the scaled model of Delmas et al. (2017), `scaled_atn`;
+- the temperature-dependent unscaled model of Binzer et al. (2016), `unscaled_atn`;
+- the model with explicit nutrient pools of Schneider et al. (2016), `nutrient_atn`.
+
+All three have interference competition and per-consumer Hill exponents. The
+allometric L-matrix web generator is `lmatrix_web`. The implementation was written from the
+published equations, not from other packages' code. It is checked against
+[ATNr](https://cran.r-project.org/package=ATNr) 1.1.2: on the same web and masses, the vector
+fields agree to 10⁻¹⁰ and the trajectories to 10⁻⁶, and the default parametrisations of the
+scaled and unscaled models are ATNr's. `test/reference/atnr/export_reference.R` regenerates the
+reference.
+
 ## Status
 
-Planned: further allometric trophic network variants (scaled, unscaled and nutrient-explicit),
-interference competition, adaptive foraging, pollutant bioaccumulation and allometric
-(L-matrix) web generators. All will be implemented from the published equations.
+Planned: adaptive foraging and pollutant bioaccumulation.
